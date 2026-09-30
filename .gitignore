@@ -18,3 +18,8 @@ package-lock.json
 .settings/
 
 *.log
+
+# MTA build output
+mta_archives/
+*.mtar
+.mta/

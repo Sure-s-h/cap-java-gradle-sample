@@ -1,0 +1,48 @@
+_schema-version: '3.1'
+ID: cap-java-gradle-sample
+version: 1.0.0
+description: Sample CAP Java application (Gradle) for build and deployment verification
+
+# Why this file exists
+# --------------------
+# A Gradle project needs no MTA descriptor of its own. It is here because the
+# pipeline runs Piper's mtaBuild step against this project, and when no mta.yaml
+# is present mtaBuild SYNTHESISES one from the pipeline configuration. With
+# general.buildTool set to "npm" that synthesised descriptor tries to run
+# "npm install" and "grunt", neither of which exists in a Gradle project, and
+# the build fails without ever invoking ./gradlew.
+#
+# This descriptor makes mtaBuild delegate to Gradle instead. The tests run in
+# the before-all step, so a failing test fails the build before any artifact is
+# packaged.
+#
+# The better fix is on the pipeline side: a Gradle project should be built by a
+# Gradle step, not by mtaBuild. Treat this file as a workaround that unblocks
+# verification, not as the shape a real Gradle project should need.
+
+parameters:
+  enable-parallel-deployments: true
+
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        # 'sh gradlew' rather than './gradlew': independent of the executable bit
+        # surviving checkout, and works identically on any POSIX agent.
+        - sh gradlew clean build
+
+modules:
+  - name: cap-java-gradle-sample-srv
+    type: java
+    path: .
+    parameters:
+      buildpack: java_buildpack
+      memory: 1024M
+      disk-quota: 1024M
+    build-parameters:
+      builder: custom
+      commands: []
+      build-result: build/libs/cap-java-gradle-sample-1.0.0-SNAPSHOT.jar
+    properties:
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
+      SPRING_PROFILES_ACTIVE: cloud

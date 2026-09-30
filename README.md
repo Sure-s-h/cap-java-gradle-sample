@@ -19,14 +19,13 @@ SAP ships **`cds-maven-plugin` and no Gradle equivalent**. There is no
    `cdsBuild` tasks that shell out to `npm` and `npx cds build --for java`.
    `processResources` depends on `cdsBuild`.
 
-2. **There is no code generation.** `cds-maven-plugin`'s `generate` goal produces typed
+2. **There is no code generation.** The `cds-maven-plugin` `generate` goal produces typed
    interfaces under `cds.gen.*`. Nothing equivalent exists for Gradle, so the event
    handler works against the untyped `EventContext` instead. The CAP runtime behaves
    identically — only compile-time typing is lost.
 
 If your pipeline's "CAP Java + Gradle" support assumes an SAP-provided Gradle plugin,
-it is assuming something that does not exist. Worth confirming with the developer what
-their implementation actually detects.
+it is assuming something that does not exist.
 
 ---
 
@@ -52,15 +51,15 @@ access**.
 Expected: **24 tests, BUILD SUCCESSFUL, exit code 0.**
 
 ```bash
-./gradlew clean build      # full build incl. the Spring Boot jar
+./gradlew clean build      # full build incl. the executable jar
 ./gradlew bootRun          # run locally on http://localhost:8080
 ```
 
 When running locally:
 
 ```bash
-curl http://localhost:8080/odata/v4/OrderService/\$metadata
-curl http://localhost:8080/odata/v4/OrderService/maxQuantityPerOrder\(\)
+curl 'http://localhost:8080/odata/v4/OrderService/$metadata'
+curl 'http://localhost:8080/odata/v4/OrderService/maxQuantityPerOrder()'
 curl -X POST http://localhost:8080/odata/v4/OrderService/submitOrder \
      -H 'Content-Type: application/json' \
      -d '{"quantity":3,"unitPrice":19.99}'
@@ -97,12 +96,54 @@ failure mode this sample exists to expose.
 | Green | `./gradlew clean test` | 24 tests, 0 failures, **exit 0** |
 | Red, property | `./gradlew clean test -Dsample.failtest=true` | 24 tests, **1 failure**, **exit 1** |
 | Red, environment | `SAMPLE_FAILTEST=true ./gradlew clean test` | 24 tests, **1 failure**, **exit 1** |
+| Red, MTA | `SAMPLE_FAILTEST=true mbt build -p=cf` | **exit 1**, **no .mtar produced** |
 
-All three have been executed and confirmed.
+All four have been executed and confirmed.
+
+If your pipeline cannot inject an environment variable, use the **`pipeline-failure-check`**
+branch instead. It is this same project with the probe hard-wired to fail, so pointing the
+pipeline at that branch produces a red build with no configuration at all. It exists only
+for this check and must never be merged into `main`.
 
 Two triggers exist because a pipeline may invoke Gradle indirectly and be unable to
 pass `-D`. The system property is forwarded into the test JVM by the `test` task in
 `build.gradle`; the environment variable is inherited automatically.
+
+---
+
+## Why this project has an mta.yaml
+
+A Gradle project needs no MTA descriptor. It is here because the pipeline runs Piper's
+`mtaBuild` step against this project, and when no descriptor is present `mtaBuild`
+*synthesises* one from the pipeline configuration. With `general.buildTool` set to `npm`,
+that synthesised descriptor runs `npm install` and then `grunt`:
+
+```
+"mta.yaml" file not found in project sources
+"mta.yaml" created.
+building the "tutorial" module...
+executing the "grunt" command...
+Fatal error: Unable to find local grunt.
+```
+
+Gradle was never invoked and the wrapper was never touched.
+
+The committed descriptor makes `mtaBuild` delegate to Gradle instead, and runs the tests
+in `before-all` so a failing test blocks packaging:
+
+| Scenario | Command | Result |
+|---|---|---|
+| Green | `mbt build -p=cf` | **exit 0**, .mtar containing the executable jar |
+| Red | `SAMPLE_FAILTEST=true mbt build -p=cf` | **exit 1**, **no .mtar** |
+
+Both confirmed locally.
+
+It invokes `sh gradlew` rather than `./gradlew`, so it does not depend on the executable
+bit surviving checkout.
+
+**This is a workaround, not the right shape.** A Gradle project should be built by a
+Gradle step, not by `mtaBuild`. If the pipeline claims to support "CAP Java with Gradle",
+falling back to the npm/MTA path is a detection defect worth reporting.
 
 ---
 
@@ -118,9 +159,9 @@ JDK 11, and no Node. That image **cannot build this project**:
 | Gradle | 9.8.0 | 6 — but supplied by the wrapper, so this one does not matter |
 
 A working image needs only **JDK 21 and Node**; the wrapper provides Gradle itself.
-`devxci/mbtci-java21-node22` satisfies both and is already used by the Maven sample.
+`devxci/mbtci-java21-node22` and `devxci/mbtci-java21-node20` both satisfy this.
 
-This repository deliberately ships **no `.pipeline/config.yml`**, so the image stays
+This repository deliberately ships **no `.pipeline/config.yml`**, so the build image stays
 under the pipeline's control. Note that a committed `.pipeline/config.yml` would
 *override* what the pipeline supplies — Piper ranks project configuration above custom
 defaults.
@@ -132,6 +173,7 @@ defaults.
 ```
 build.gradle                     Gradle build, CDS tasks, test configuration
 settings.gradle
+mta.yaml                         makes Piper's mtaBuild delegate to Gradle
 package.json                     @sap/cds-dk, the CDS compiler
 srv/order-service.cds            OData V4 service: actions and functions only
 srv/src/main/java/.../logic/     plain business logic (unit-testable)
@@ -140,17 +182,20 @@ srv/src/test/java/               the test suite
 gen/                             CDS compiler output (git-ignored)
 ```
 
-`build/`, `gen/`, `.gradle/` and `node_modules/` are build output and are not committed.
+`build/`, `gen/`, `.gradle/`, `node_modules/` and `mta_archives/` are build output and are
+not committed.
 
-### Two notes on `build.gradle`
+### Three notes on build.gradle
 
 - **Source roots are remapped.** CAP keeps the service module under `srv/`, so
   `sourceSets` points at `srv/src/main/java` rather than the Gradle default.
 - **`gen/` is a second resource root.** In a non-Maven project `cds build --for java`
   writes CSN and EDMX under `gen/`, not into `srv/src/main/resources`. Without that
   second root the model never reaches the classpath and every OData endpoint returns
-  **404** while the build still succeeds. `duplicatesStrategy = EXCLUDE` handles
+  **404 while the build still succeeds**. `duplicatesStrategy = EXCLUDE` handles
   `application.yaml`, which `cds build` copies into `gen/` as well.
+- **The plain jar is disabled.** The Spring Boot plugin otherwise emits both a 60 MB
+  executable jar and a 6 KB `-plain` jar, which makes a build-result glob ambiguous.
 
 ## What the tests cover
 
