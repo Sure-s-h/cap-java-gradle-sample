@@ -35,7 +35,7 @@ it is assuming something that does not exist.
 |--------|---------|----------------------------------------------------------|
 | JDK    | 21+     | `options.release = 21` in `build.gradle`                 |
 | Gradle | 9.8.0   | supplied by the wrapper — no Gradle needed on the agent  |
-| Node   | **22+** | `@sap/cds-dk` 10 requires Node >=22; Node 20 fails at `cdsBuild`  |
+| Node   | **20+** | `@sap/cds-dk` is pinned to 9.x, which supports Node >=20          |
 
 The first build runs `npm install` and compiles the CDS model, so it **needs network
 access**.
@@ -158,10 +158,25 @@ JDK 11, and no Node. That image **cannot build this project**:
 | Node | **22+** | absent |
 | Gradle | 9.8.0 | 6 — but supplied by the wrapper, so this one does not matter |
 
-A working image needs only **JDK 21 and Node**; the wrapper provides Gradle itself.
-Use **`devxci/mbtci-java21-node22`**. `devxci/mbtci-java21-node20` does NOT work: it
-ships Node 20.18.1, and the CDS compiler aborts with "Node.js version 22 or higher is
-required for @sap/cds v10.1.0" during the `cdsBuild` task.
+A working image needs only **JDK 21 and Node 20+**; the wrapper provides Gradle itself.
+Both `devxci/mbtci-java21-node20` and `devxci/mbtci-java21-node22` work.
+
+### Why @sap/cds-dk is pinned to 9.x
+
+`@sap/cds-dk` 10 depends on `@sap/cds` 10, which requires **Node >=22**. On a Node 20
+image the `cdsBuild` task aborts with:
+
+```
+Node.js version 22 or higher is required for @sap/cds v10.1.0.
+Current version 20.18.1 does not satisfy this.
+```
+
+Pinning to `^9.9.0` (which brings `@sap/cds` 9, requiring only Node >=20) lets the project
+build on both Node 20 and Node 22, so it does not depend on which image the pipeline
+supplies. The CAP Java runtime is unaffected: CDS 9 compiler output works with
+`cds-services` 5.1.1, verified by all 24 tests including the OData ones.
+
+To move to `@sap/cds-dk` 10, use a Node 22 image such as `devxci/mbtci-java21-node22`.
 
 This repository deliberately ships **no `.pipeline/config.yml`**, so the build image stays
 under the pipeline's control. Note that a committed `.pipeline/config.yml` would
