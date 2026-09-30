@@ -117,6 +117,12 @@ jacoco {
 
 tasks.named('test') {
     finalizedBy 'jacocoTestReport'
+
+    // BRANCH-ONLY: on 'mixed-test-results' the suite is expected to contain
+    // failures, and the build must still succeed so the Static Analysis stage
+    // runs and SonarQube can render a partial result. Never set this on main -
+    // it makes a failing suite report a successful build.
+    ignoreFailures = true
 }
 
 tasks.named('jacocoTestReport') {
