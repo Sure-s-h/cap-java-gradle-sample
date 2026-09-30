@@ -89,6 +89,35 @@ failure mode this sample exists to expose.
 
 ---
 
+## Static analysis (SonarQube)
+
+The pipeline runs the standalone `sonar-scanner` CLI, not the Gradle Sonar plugin, so it
+cannot infer the Gradle layout. Without `sonar.java.binaries` it aborts with:
+
+> Your project contains .java files, please provide compiled classes with
+> sonar.java.binaries property
+
+`sonar-project.properties` supplies the source roots, compiled output, JUnit results and
+JaCoCo coverage. **The paths differ from the Maven sample** — this is the same
+Gradle-vs-Maven path trap as the test reports:
+
+| | Gradle | Maven |
+|---|---|---|
+| classes | `build/classes/java/main` | `srv/target/classes` |
+| test results | `build/test-results/test` | `srv/target/surefire-reports` |
+| coverage | `build/reports/jacoco/test/jacocoTestReport.xml` | `srv/target/site/jacoco/jacoco.xml` |
+
+**Ordering matters:** Static Analysis must run *after* a successful build in the same
+workspace. The scanner reads `build/classes/java/main`, which only exists once `gradle
+test` has run. A Sonar stage running on a clean checkout, or after a failed build, fails
+for this reason rather than because of any code problem.
+
+Coverage is produced by the `jacocoTestReport` task, wired as `finalizedBy` on `test` so
+a plain `gradle test` emits it. Currently ~90% instruction coverage; the uncovered lines
+are `Application.main` and defensive branches no test exercises.
+
+---
+
 ## Verifying that failures turn the pipeline red
 
 | Scenario | Command | Expected |

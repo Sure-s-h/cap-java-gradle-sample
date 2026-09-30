@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'jacoco'
     id 'org.springframework.boot' version '4.1.1'
     // Provisions Node itself, so the build does not depend on the build image
     // shipping Node. This is the Gradle equivalent of the cds-maven-plugin
@@ -105,6 +106,24 @@ tasks.named('test') {
     systemProperty 'sample.failtest', sampleFailTest
     testLogging {
         events 'passed', 'skipped', 'failed'
+    }
+}
+
+// Coverage for SonarQube. The report is bound to 'test' so a plain
+// 'gradle test' produces it, not only 'gradle build'.
+jacoco {
+    toolVersion = '0.8.13'
+}
+
+tasks.named('test') {
+    finalizedBy 'jacocoTestReport'
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn 'test'
+    reports {
+        xml.required = true
+        html.required = true
     }
 }
 
