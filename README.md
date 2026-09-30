@@ -106,7 +106,226 @@ pass `-D`. The system property is forwarded into the test JVM by the `test` task
 
 ---
 
-## Pipeline configuration (Jenkins / Piper / ReleaseOwl)
+## Why this project has an mta.yaml
+
+A Gradle project needs no MTA descriptor. It is here because the pipeline runs Piper's
+**** step against this project, and when no  is present 
+*synthesises* one from the pipeline configuration. With  that
+synthesised descriptor runs 
+up to date, audited 113 packages in 3s
+
+33 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities and then :
+
+
+
+Gradle was never invoked. 
+> Task :help
+
+Welcome to Gradle 9.8.0.
+
+To run a build, run gradlew <task> ...
+
+To see a list of available tasks, run gradlew tasks
+
+To see more detail about a task, run gradlew help --task <task>
+
+To see a list of command-line options, run gradlew --help
+
+For more detail on using Gradle, see https://docs.gradle.org/9.8.0/userguide/command_line_interface.html
+
+For troubleshooting, visit https://help.gradle.org
+
+BUILD SUCCESSFUL in 1s
+1 actionable task: 1 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.8.0/userguide/configuration_cache_enabling.html was never touched.
+
+The committed  makes  delegate to Gradle instead, and runs the tests
+in  so a failing test blocks packaging:
+
+| Scenario | Command | Result |
+|---|---|---|
+| Green | [2026-09-30 15:05:52]  INFO Cloud MTA Build Tool version 1.2.47
+[2026-09-30 15:05:52]  INFO generating the "Makefile_20260930150552.mta" file...
+[2026-09-30 15:05:52]  INFO done
+[2026-09-30 15:05:52]  INFO executing the "make -f Makefile_20260930150552.mta p=cf mtar= strict=true mode=" command...
+[2026-09-30 15:05:52]  INFO validating the MTA project
+[2026-09-30 15:05:53]  INFO running the "before-all" build...
+[2026-09-30 15:05:53]  INFO executing the "sh gradlew clean build" command...
+..> Task :clean
+.> Task :compileJava
+> Task :cdsInstall UP-TO-DATE
+> Task :cdsBuild UP-TO-DATE
+> Task :processResources
+> Task :classes
+> Task :resolveMainClassName
+..> Task :bootJar
+> Task :jar SKIPPED
+> Task :assemble
+.> Task :compileTestJava
+> Task :processTestResources NO-SOURCE
+> Task :testClasses
+.......
+> Task :test
+
+OrderServiceODataTest > serviceExposesMetadata() PASSED
+
+OrderServiceODataTest > submitOrderRejectsInvalidQuantityWithBadRequest() PASSED
+
+OrderServiceODataTest > submitOrderReturnsTheCalculatedTotal() PASSED
+
+OrderServiceODataTest > maxQuantityPerOrderFunctionIsCallable() PASSED
+
+OrderValidatorTest > validateQuantity > rejectsNonPositiveQuantity(int) > [1] quantity = 0 PASSED
+
+OrderValidatorTest > validateQuantity > rejectsNonPositiveQuantity(int) > [2] quantity = -1 PASSED
+
+OrderValidatorTest > validateQuantity > rejectsNonPositiveQuantity(int) > [3] quantity = -100 PASSED
+
+OrderValidatorTest > validateQuantity > rejectsQuantityAboveMaximum() PASSED
+
+OrderValidatorTest > validateQuantity > acceptsQuantitiesWithinRange(int) > [1] quantity = 1 PASSED
+
+OrderValidatorTest > validateQuantity > acceptsQuantitiesWithinRange(int) > [2] quantity = 5 PASSED
+
+OrderValidatorTest > validateQuantity > acceptsQuantitiesWithinRange(int) > [3] quantity = 99 PASSED
+
+OrderValidatorTest > validateQuantity > acceptsQuantitiesWithinRange(int) > [4] quantity = 100 PASSED
+
+OrderValidatorTest > validateQuantity > rejectsNullQuantity() PASSED
+
+OrderValidatorTest > totalPrice > alwaysRoundsToTwoDecimals() PASSED
+
+OrderValidatorTest > totalPrice > propagatesPriceValidation() PASSED
+
+OrderValidatorTest > totalPrice > propagatesQuantityValidation() PASSED
+
+OrderValidatorTest > totalPrice > multipliesQuantityByUnitPrice(int, String, String) > [1] quantity = "1", unitPrice = "10.00", expected = "10.00" PASSED
+
+OrderValidatorTest > totalPrice > multipliesQuantityByUnitPrice(int, String, String) > [2] quantity = "3", unitPrice = "19.99", expected = "59.97" PASSED
+
+OrderValidatorTest > totalPrice > multipliesQuantityByUnitPrice(int, String, String) > [3] quantity = "10", unitPrice = "0.00", expected = "0.00" PASSED
+
+OrderValidatorTest > totalPrice > multipliesQuantityByUnitPrice(int, String, String) > [4] quantity = "7", unitPrice = "1.005", expected = "7.04" PASSED
+
+OrderValidatorTest > validateUnitPrice > rejectsNegativePrice() PASSED
+
+OrderValidatorTest > validateUnitPrice > acceptsZeroAndPositivePrices() PASSED
+
+OrderValidatorTest > validateUnitPrice > rejectsNullPrice() PASSED
+
+PipelineFailureProbeTest > failsOnlyWhenThePipelineProbeIsEnabled() PASSED
+
+2026-09-30T15:06:06.948+05:30  INFO 31012 --- [ionShutdownHook] o.s.boot.tomcat.GracefulShutdown         : Commencing graceful shutdown. Waiting for active requests to complete
+.2026-09-30T15:06:06.957+05:30  INFO 31012 --- [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown         : Graceful shutdown complete
+
+> Task :check
+> Task :build
+
+BUILD SUCCESSFUL in 13s
+9 actionable tasks: 7 executed, 2 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.8.0/userguide/configuration_cache_enabling.html
+[2026-09-30 15:06:07]  INFO validating the MTA project
+[2026-09-30 15:06:07]  INFO building the "cap-java-gradle-sample-srv" module...
+[2026-09-30 15:06:07]  INFO the build results of the "cap-java-gradle-sample-srv" module will be packaged and saved in the "C:SERSSURESH.TP-SAMPLESP-JAVA-GRADLE-SAMPLE.CAP-JAVA-GRADLE-SAMPLE_MTA_BUILD_TMPP-JAVA-GRADLE-SAMPLE-SRV" FOLDER
+[2026-09-30 15:06:08]  INFO FINISHED BUILDING THE "CAP-JAVA-GRADLE-SAMPLE-SRV" MODULE
+[2026-09-30 15:06:08]  INFO RUNNING THE "AFTER-ALL" BUILD...
+[2026-09-30 15:06:08]  INFO GENERATING THE METADATA...
+[2026-09-30 15:06:08]  INFO GENERATING THE "C:SERSSURESH.TP-SAMPLESP-JAVA-GRADLE-SAMPLE.CAP-JAVA-GRADLE-SAMPLE_MTA_BUILD_TMPMETA-INFMTAD.YAML" FILE...
+[2026-09-30 15:06:08]  INFO GENERATING THE MTA ARCHIVE...
+[2026-09-30 15:06:09]  INFO THE MTA ARCHIVE GENERATED AT: C:SERSSURESH.TP-SAMPLESP-JAVA-GRADLE-SAMPLEMTA_ARCHIVESP-JAVA-GRADLE-SAMPLE_1.0.0.MTAR
+[2026-09-30 15:06:10]  INFO CLEANING TEMPORARY FILES... | **EXIT 0**,  PRODUCED CONTAINING THE EXECUTABLE JAR |
+| RED | [2026-09-30 15:06:10]  INFO CLOUD MTA BUILD TOOL VERSION 1.2.47
+[2026-09-30 15:06:10]  INFO GENERATING THE "MAKEFILE_20260930150610.MTA" FILE...
+[2026-09-30 15:06:10]  INFO DONE
+[2026-09-30 15:06:10]  INFO EXECUTING THE "MAKE -F MAKEFILE_20260930150610.MTA P=CF MTAR= STRICT=TRUE MODE=" COMMAND...
+[2026-09-30 15:06:11]  INFO VALIDATING THE MTA PROJECT
+[2026-09-30 15:06:11]  INFO RUNNING THE "BEFORE-ALL" BUILD...
+[2026-09-30 15:06:11]  INFO EXECUTING THE "SH GRADLEW CLEAN BUILD" COMMAND...
+.> TASK :CLEAN
+.> TASK :COMPILEJAVA
+> TASK :CDSINSTALL UP-TO-DATE
+> TASK :CDSBUILD UP-TO-DATE
+> TASK :PROCESSRESOURCES
+> TASK :CLASSES
+> TASK :RESOLVEMAINCLASSNAME
+..> TASK :BOOTJAR
+> TASK :JAR SKIPPED
+> TASK :ASSEMBLE
+.> TASK :COMPILETESTJAVA
+> TASK :PROCESSTESTRESOURCES NO-SOURCE
+> TASK :TESTCLASSES
+......
+> TASK :TEST
+
+ORDERSERVICEODATATEST > SERVICEEXPOSESMETADATA() PASSED
+
+ORDERSERVICEODATATEST > SUBMITORDERREJECTSINVALIDQUANTITYWITHBADREQUEST() PASSED
+
+ORDERSERVICEODATATEST > SUBMITORDERRETURNSTHECALCULATEDTOTAL() PASSED
+
+ORDERSERVICEODATATEST > MAXQUANTITYPERORDERFUNCTIONISCALLABLE() PASSED
+
+ORDERVALIDATORTEST > VALIDATEQUANTITY > REJECTSNONPOSITIVEQUANTITY(INT) > [1] QUANTITY = 0 PASSED
+
+ORDERVALIDATORTEST > VALIDATEQUANTITY > REJECTSNONPOSITIVEQUANTITY(INT) > [2] QUANTITY = -1 PASSED
+
+ORDERVALIDATORTEST > VALIDATEQUANTITY > REJECTSNONPOSITIVEQUANTITY(INT) > [3] QUANTITY = -100 PASSED
+
+ORDERVALIDATORTEST > VALIDATEQUANTITY > REJECTSQUANTITYABOVEMAXIMUM() PASSED
+
+ORDERVALIDATORTEST > VALIDATEQUANTITY > ACCEPTSQUANTITIESWITHINRANGE(INT) > [1] QUANTITY = 1 PASSED
+
+ORDERVALIDATORTEST > VALIDATEQUANTITY > ACCEPTSQUANTITIESWITHINRANGE(INT) > [2] QUANTITY = 5 PASSED
+
+ORDERVALIDATORTEST > VALIDATEQUANTITY > ACCEPTSQUANTITIESWITHINRANGE(INT) > [3] QUANTITY = 99 PASSED
+
+ORDERVALIDATORTEST > VALIDATEQUANTITY > ACCEPTSQUANTITIESWITHINRANGE(INT) > [4] QUANTITY = 100 PASSED
+
+ORDERVALIDATORTEST > VALIDATEQUANTITY > REJECTSNULLQUANTITY() PASSED
+
+ORDERVALIDATORTEST > TOTALPRICE > ALWAYSROUNDSTOTWODECIMALS() PASSED
+
+ORDERVALIDATORTEST > TOTALPRICE > PROPAGATESPRICEVALIDATION() PASSED
+
+ORDERVALIDATORTEST > TOTALPRICE > PROPAGATESQUANTITYVALIDATION() PASSED
+
+ORDERVALIDATORTEST > TOTALPRICE > MULTIPLIESQUANTITYBYUNITPRICE(INT, STRING, STRING) > [1] QUANTITY = "1", UNITPRICE = "10.00", EXPECTED = "10.00" PASSED
+
+ORDERVALIDATORTEST > TOTALPRICE > MULTIPLIESQUANTITYBYUNITPRICE(INT, STRING, STRING) > [2] QUANTITY = "3", UNITPRICE = "19.99", EXPECTED = "59.97" PASSED
+
+ORDERVALIDATORTEST > TOTALPRICE > MULTIPLIESQUANTITYBYUNITPRICE(INT, STRING, STRING) > [3] QUANTITY = "10", UNITPRICE = "0.00", EXPECTED = "0.00" PASSED
+
+ORDERVALIDATORTEST > TOTALPRICE > MULTIPLIESQUANTITYBYUNITPRICE(INT, STRING, STRING) > [4] QUANTITY = "7", UNITPRICE = "1.005", EXPECTED = "7.04" PASSED
+
+ORDERVALIDATORTEST > VALIDATEUNITPRICE > REJECTSNEGATIVEPRICE() PASSED
+
+ORDERVALIDATORTEST > VALIDATEUNITPRICE > ACCEPTSZEROANDPOSITIVEPRICES() PASSED
+
+ORDERVALIDATORTEST > VALIDATEUNITPRICE > REJECTSNULLPRICE() PASSED
+
+PIPELINEFAILUREPROBETEST > FAILSONLYWHENTHEPIPELINEPROBEISENABLED() FAILED
+    ORG.OPENTEST4J.ASSERTIONFAILEDERROR AT PIPELINEFAILUREPROBETEST.JAVA:33
+
+2026-09-30T15:06:22.923+05:30  INFO 2332 --- [IONSHUTDOWNHOOK] O.S.BOOT.TOMCAT.GRACEFULSHUTDOWN         : COMMENCING GRACEFUL SHUTDOWN. WAITING FOR ACTIVE REQUESTS TO COMPLETE
+2026-09-30T15:06:22.944+05:30  INFO 2332 --- [TOMCAT-SHUTDOWN] O.S.BOOT.TOMCAT.GRACEFULSHUTDOWN         : GRACEFUL SHUTDOWN COMPLETE
+.
+> TASK :TEST FAILED
+9 ACTIONABLE TASKS: 7 EXECUTED, 2 UP-TO-DATE
+[2026-09-30 15:06:23] ERROR THE "BEFORE-ALL"" BUILD FAILED: COULD NOT EXECUTE THE "SH GRADLEW CLEAN BUILD" COMMAND: EXIT STATUS 1
+[2026-09-30 15:06:23] ERROR COULD NOT BUILD THE MTA PROJECT: COULD NOT EXECUTE THE "MAKE -F MAKEFILE_20260930150610.MTA P=CF MTAR= STRICT=TRUE MODE=" COMMAND: EXIT STATUS 2 | **EXIT 1**, **NO ** |
+
+BOTH CONFIRMED LOCALLY.
+
+**THIS IS A WORKAROUND, NOT THE RIGHT SHAPE.** A GRADLE PROJECT SHOULD BE BUILT BY A
+GRADLE STEP, NOT BY . IF THE PIPELINE CLAIMS TO SUPPORT "CAP JAVA WITH GRADLE",
+FALLING BACK TO THE NPM/MTA PATH IS A DETECTION DEFECT WORTH REPORTING.
+
+---
+
+## PIPELINE CONFIGURATION (JENKINS / PIPER / RELEASEOWL)
 
 Piper's `gradleExecuteBuild` step defaults to **`gradle:6-jdk11-alpine`** — Gradle 6,
 JDK 11, and no Node. That image **cannot build this project**:

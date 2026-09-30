@@ -84,6 +84,13 @@ tasks.named('processResources') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+// The Spring Boot plugin also emits a small '-plain' jar alongside the
+// executable one. Only the executable jar is deployable, and two jars would
+// make a build-result glob ambiguous, so the plain jar is switched off.
+tasks.named('jar') {
+    enabled = false
+}
+
 tasks.named('test') {
     useJUnitPlatform()
     // Forwarded into the test JVM; the probe also honours SAMPLE_FAILTEST from the environment.
