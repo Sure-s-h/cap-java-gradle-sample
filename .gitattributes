@@ -1,0 +1,9 @@
+# The build runs on Linux agents. Shell scripts must keep LF endings, otherwise
+# the agent fails with "bad interpreter: /bin/sh^M".
+* text=auto eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+gradlew text eol=lf
+*.jar binary

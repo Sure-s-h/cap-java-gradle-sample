@@ -1,0 +1,5 @@
+---
+# The service is stateless - no entities, therefore no datasource and no
+# database service binding in any landscape.
+cds:
+  data-source.auto-config.enabled: false

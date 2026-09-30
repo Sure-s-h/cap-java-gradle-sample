@@ -1,0 +1,101 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.1'
+}
+
+group = 'com.releaseowl.sample'
+version = '1.0.0-SNAPSHOT'
+
+ext {
+    cdsServicesVersion = '5.1.1'
+    springBootVersion = '4.1.1'
+    // Pipeline verification switch: -Dsample.failtest=true forces a test failure
+    sampleFailTest = System.getProperty('sample.failtest', 'false')
+}
+
+repositories {
+    mavenCentral()
+}
+
+// CAP's project layout keeps the service module under srv/, so the standard
+// Gradle source directories are remapped rather than duplicating the layout.
+sourceSets {
+    main {
+        java { srcDirs = ['srv/src/main/java'] }
+        // 'cds build --for java' writes CSN and EDMX under gen/ in a non-Maven
+        // project, so that directory is a second resource root.
+        resources { srcDirs = ['srv/src/main/resources', 'gen/srv/src/main/resources'] }
+    }
+    test {
+        java { srcDirs = ['srv/src/test/java'] }
+        resources { srcDirs = ['srv/src/test/resources'] }
+    }
+}
+
+dependencies {
+    implementation platform("com.sap.cds:cds-services-bom:${cdsServicesVersion}")
+    implementation platform("org.springframework.boot:spring-boot-dependencies:${springBootVersion}")
+
+    implementation 'com.sap.cds:cds-starter-spring-boot'
+    runtimeOnly 'com.sap.cds:cds-adapter-odata-v4'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = 'UTF-8'
+}
+
+// ---------------------------------------------------------------------------
+// CDS model compilation.
+//
+// SAP publishes no Gradle plugin for CAP Java - cds-maven-plugin has no Gradle
+// equivalent - so the CDS compiler (a Node tool) is driven directly here.
+// ---------------------------------------------------------------------------
+
+def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
+
+def shellCommand = { String command ->
+    isWindows ? ['cmd', '/c', command] : ['sh', '-c', command]
+}
+
+tasks.register('cdsInstall', Exec) {
+    description = 'Installs @sap/cds-dk, the CDS compiler'
+    group = 'cds'
+    inputs.file('package.json')
+    outputs.dir('node_modules')
+    commandLine shellCommand('npm install --no-audit --no-fund')
+}
+
+tasks.register('cdsBuild', Exec) {
+    description = 'Compiles the CDS model into CSN and EDMX for the Java runtime'
+    group = 'cds'
+    dependsOn 'cdsInstall'
+    inputs.files(fileTree('srv') { include '**/*.cds' })
+    outputs.dir('gen')
+    commandLine shellCommand('npx cds build --for java')
+}
+
+tasks.named('processResources') {
+    dependsOn 'cdsBuild'
+    // 'cds build' also copies application.yaml into gen/, duplicating the
+    // authoritative copy under srv/. EXCLUDE keeps the first root's copy.
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    // Forwarded into the test JVM; the probe also honours SAMPLE_FAILTEST from the environment.
+    systemProperty 'sample.failtest', sampleFailTest
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+    }
+}
+
+tasks.named('clean') {
+    doLast {
+        delete 'srv/src/main/resources/edmx'
+        delete 'gen'
+    }
+}
