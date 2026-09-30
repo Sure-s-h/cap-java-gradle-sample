@@ -35,7 +35,7 @@ it is assuming something that does not exist.
 |--------|---------|----------------------------------------------------------|
 | JDK    | 21+     | `options.release = 21` in `build.gradle`                 |
 | Gradle | 9.8.0   | supplied by the wrapper — no Gradle needed on the agent  |
-| Node   | 20+     | `@sap/cds-dk` 10; the CDS compiler is a Node tool         |
+| Node   | **22+** | `@sap/cds-dk` 10 requires Node >=22; Node 20 fails at `cdsBuild`  |
 
 The first build runs `npm install` and compiles the CDS model, so it **needs network
 access**.
@@ -155,11 +155,13 @@ JDK 11, and no Node. That image **cannot build this project**:
 | Requirement | Needed | In the default image |
 |---|---|---|
 | Java | 21+ | 11 |
-| Node | 20+ | absent |
+| Node | **22+** | absent |
 | Gradle | 9.8.0 | 6 — but supplied by the wrapper, so this one does not matter |
 
 A working image needs only **JDK 21 and Node**; the wrapper provides Gradle itself.
-`devxci/mbtci-java21-node22` and `devxci/mbtci-java21-node20` both satisfy this.
+Use **`devxci/mbtci-java21-node22`**. `devxci/mbtci-java21-node20` does NOT work: it
+ships Node 20.18.1, and the CDS compiler aborts with "Node.js version 22 or higher is
+required for @sap/cds v10.1.0" during the `cdsBuild` task.
 
 This repository deliberately ships **no `.pipeline/config.yml`**, so the build image stays
 under the pipeline's control. Note that a committed `.pipeline/config.yml` would
