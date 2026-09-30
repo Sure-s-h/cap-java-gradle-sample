@@ -1,7 +1,13 @@
 plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.1'
+    // Provisions Node itself, so the build does not depend on the build image
+    // shipping Node. This is the Gradle equivalent of the cds-maven-plugin
+    // 'install-node' goal used by the Maven sample.
+    id 'com.github.node-gradle.node' version '7.1.0'
 }
+
+import com.github.gradle.node.npm.task.NpxTask
 
 group = 'com.releaseowl.sample'
 version = '1.0.0-SNAPSHOT'
@@ -52,29 +58,31 @@ tasks.withType(JavaCompile).configureEach {
 //
 // SAP publishes no Gradle plugin for CAP Java - cds-maven-plugin has no Gradle
 // equivalent - so the CDS compiler (a Node tool) is driven directly here.
+//
+// Node is downloaded by the node-gradle plugin rather than taken from the build
+// image. Piper's gradleExecuteBuild step runs on gradle:8-jdk21, which has
+// Gradle and a JDK but no Node, and no public image ships Gradle + JDK 21 +
+// Node together. Downloading Node keeps the build independent of the image.
 // ---------------------------------------------------------------------------
 
-def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
-
-def shellCommand = { String command ->
-    isWindows ? ['cmd', '/c', command] : ['sh', '-c', command]
+node {
+    download = true
+    version = '22.12.0'
+    // Overridable for agents that mirror the Node distributions internally.
+    distBaseUrl = findProperty('nodeDistBaseUrl') ?: 'https://nodejs.org/dist'
+    workDir = file("${layout.buildDirectory.get()}/nodejs")
+    npmWorkDir = file("${layout.buildDirectory.get()}/npm")
 }
 
-tasks.register('cdsInstall', Exec) {
-    description = 'Installs @sap/cds-dk, the CDS compiler'
-    group = 'cds'
-    inputs.file('package.json')
-    outputs.dir('node_modules')
-    commandLine shellCommand('npm install --no-audit --no-fund')
-}
-
-tasks.register('cdsBuild', Exec) {
+tasks.register('cdsBuild', NpxTask) {
     description = 'Compiles the CDS model into CSN and EDMX for the Java runtime'
     group = 'cds'
-    dependsOn 'cdsInstall'
+    dependsOn 'npmInstall'
+    command = 'cds'
+    args = ['build', '--for', 'java']
     inputs.files(fileTree('srv') { include '**/*.cds' })
+    inputs.file('package.json')
     outputs.dir('gen')
-    commandLine shellCommand('npx cds build --for java')
 }
 
 tasks.named('processResources') {

@@ -35,7 +35,7 @@ it is assuming something that does not exist.
 |--------|---------|----------------------------------------------------------|
 | JDK    | 21+     | `options.release = 21` in `build.gradle`                 |
 | Gradle | 9.8.0   | supplied by the wrapper — no Gradle needed on the agent  |
-| Node   | **20+** | `@sap/cds-dk` is pinned to 9.x, which supports Node >=20          |
+| Node   | none    | the build **downloads its own Node 22**; the agent needs none     |
 
 The first build runs `npm install` and compiles the CDS model, so it **needs network
 access**.
@@ -158,25 +158,37 @@ JDK 11, and no Node. That image **cannot build this project**:
 | Node | **22+** | absent |
 | Gradle | 9.8.0 | 6 — but supplied by the wrapper, so this one does not matter |
 
-A working image needs only **JDK 21 and Node 20+**; the wrapper provides Gradle itself.
-Both `devxci/mbtci-java21-node20` and `devxci/mbtci-java21-node22` work.
+Because the build downloads its own Node, the image only has to supply a **JDK 21**.
+Both `gradle:8-jdk21` (used by `gradleExecuteBuild`) and the `devxci/mbtci-java21-*`
+images work.
 
-### Why @sap/cds-dk is pinned to 9.x
+### Why Node is downloaded rather than taken from the image
 
-`@sap/cds-dk` 10 depends on `@sap/cds` 10, which requires **Node >=22**. On a Node 20
-image the `cdsBuild` task aborts with:
+Piper's `gradleExecuteBuild` runs `gradle` directly on `gradle:8-jdk21`, which has Gradle
+and a JDK but **no Node**:
 
 ```
-Node.js version 22 or higher is required for @sap/cds v10.1.0.
-Current version 20.18.1 does not satisfy this.
+sh: 1: npm: not found
+> Task :cdsInstall FAILED
 ```
 
-Pinning to `^9.9.0` (which brings `@sap/cds` 9, requiring only Node >=20) lets the project
-build on both Node 20 and Node 22, so it does not depend on which image the pipeline
-supplies. The CAP Java runtime is unaffected: CDS 9 compiler output works with
-`cds-services` 5.1.1, verified by all 24 tests including the OData ones.
+No public image ships Gradle + JDK 21 + Node together, so relying on the image is a dead
+end. The [node-gradle](https://github.com/node-gradle/gradle-node-plugin) plugin
+downloads Node 22 into `build/nodejs/` instead — the same approach the Maven sample gets
+from the `cds-maven-plugin` `install-node` goal.
 
-To move to `@sap/cds-dk` 10, use a Node 22 image such as `devxci/mbtci-java21-node22`.
+This makes the build self-contained and lets `@sap/cds-dk` stay on 10.x, which requires
+Node >=22 and would otherwise be unusable on a Node 20 image.
+
+The agent must be able to reach `https://nodejs.org/dist`. If it mirrors Node internally,
+override the base URL:
+
+```bash
+gradle test -PnodeDistBaseUrl=https://your-mirror/nodejs
+```
+
+Verified locally by building with Node removed from PATH entirely: `:nodeSetup` fetched
+Node 22.12.0 and all 24 tests passed.
 
 This repository deliberately ships **no `.pipeline/config.yml`**, so the build image stays
 under the pipeline's control. Note that a committed `.pipeline/config.yml` would
